@@ -6,7 +6,7 @@ from datetime import datetime
 from dateutil import tz
 import logging
 
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +50,7 @@ def process_message(event):
 
 
 def main():
+    logger.info('Starting crypto watch for {}'.format(SYMBOL))
     client = Client(BINANCE_API_KEY, BINANCE_SECRET_KEY)
     bm = BinanceSocketManager(client)
     bm.start_kline_socket(SYMBOL, process_message, interval=KLINE_INTERVAL_1MINUTE)
