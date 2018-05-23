@@ -45,12 +45,12 @@ def process_message(event):
     p_t = float(event['k']['c'])
     # event_time = datetime.fromtimestamp(event['E']/1000)
     # event_time = event_time.replace(tzinfo=sing_tz)
-    # event['_id'] = event['E']
-    # try:
-    #     symbol_collection = db[SYMBOL]
-    #     symbol_collection.insert_one(event)
-    # except DuplicateKeyError:
-    #     logger.error('Duplicate event {}'.format(event['_id']))
+    event['_id'] = event['E']
+    try:
+        symbol_collection = db[SYMBOL]
+        symbol_collection.insert_one(event)
+    except DuplicateKeyError:
+        logger.error('Duplicate event {}'.format(event['_id']))
     if mode == event_type.UPTURN:
         if p_t <= p_ext * (1.0 - LAMBDA):
             logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
