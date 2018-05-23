@@ -53,9 +53,9 @@ def process_message(event):
         logger.error('Duplicate event {}'.format(event['_id']))
     if mode == event_type.UPTURN:
         if p_t <= p_ext * (1.0 - LAMBDA):
+            logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.DOWNTURN
             p_ext = p_t
-            logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
             logger.info('BUY TF mode={} p_t={}'.format(str(mode), p_t))
         else:
             p_ext = max([p_ext, p_t])
@@ -63,9 +63,9 @@ def process_message(event):
 
     else:  # mode is DOWNTURN
         if p_t >= p_ext * (1.0 + LAMBDA):
+            logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.UPTURN
             p_ext = p_t
-            logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
             logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
         else:
             p_ext = min([p_ext, p_t])
