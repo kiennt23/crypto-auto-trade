@@ -17,10 +17,17 @@ class DCEventType(set):
         raise AttributeError
 
 
+class Position:
+    def __init__(self):
+        self.qty = 0
+        self.price = 0
+        self.status = 'OPEN'
+
+
 event_type = DCEventType(['UPTURN', 'DOWNTURN'])
 mode = event_type.UPTURN
 LAMBDA = 0.004
-price_extreme = 0
+p_ext = 0
 sing_tz = tz.gettz('UTC+8')
 
 
@@ -28,25 +35,25 @@ sing_tz = tz.gettz('UTC+8')
 def process_message(event):
     global mode
     global LAMBDA
-    global price_extreme
-    price = float(event['k']['c'])
+    global p_ext
+    p_t = float(event['k']['c'])
     event_time = datetime.fromtimestamp(event['E']/1000)
     event_time = event_time.replace(tzinfo=sing_tz)
     if mode == event_type.UPTURN:
-        if price <= price_extreme * (1 - LAMBDA):
+        if p_t <= p_ext * (1 - LAMBDA):
             mode = event_type.DOWNTURN
-            price_extreme = price
-            logger.info('{} SELL CT or BUY TF {}'.format(event_time, price))
+            p_ext = p_t
+            logger.info('BUY TF mode={} p_ext={} p_t={}'.format(str(mode), p_t, p_ext))
         else:
-            price_extreme = max([price_extreme, price])
+            p_ext = max([p_ext, p_t])
 
     else:  # mode is DOWNTURN
-        if price >= price_extreme * (1 + LAMBDA):
+        if p_t >= p_ext * (1 + LAMBDA):
             mode = event_type.UPTURN
-            price_extreme = price
-            logger.info('{} BUY CT or SELL TF {}'.format(event_time, price))
+            p_ext = p_t
+            logger.info('SELL TF mode={} p_ext={} p_t={}'.format(str(mode), p_t, p_ext))
         else:
-            price_extreme = min([price_extreme, price])
+            p_ext = min([p_ext, p_t])
 
 
 def main():
