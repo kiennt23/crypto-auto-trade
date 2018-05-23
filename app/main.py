@@ -45,10 +45,10 @@ def process_message(event):
     p_t = float(event['k']['c'])
     # event_time = datetime.fromtimestamp(event['E']/1000)
     # event_time = event_time.replace(tzinfo=sing_tz)
-    event['_id'] = event['E']
+    price_doc = {'_id': event['E'], 'p': p_t}
     try:
         symbol_collection = db[SYMBOL]
-        symbol_collection.insert_one(event)
+        symbol_collection.insert_one(price_doc)
     except DuplicateKeyError:
         logger.error('Duplicate event {}'.format(event['_id']))
     if mode == event_type.UPTURN:
