@@ -8,6 +8,7 @@ from app.settings import *
 from dateutil import tz
 import logging
 import pymongo
+from decimal import *
 
 
 logging.basicConfig(level=LOG_LEVEL)
@@ -91,7 +92,9 @@ def sell(mode, p_t, position):
     logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
     # When SELL, close position
     if position is not None and 'FILLED' == position.status:
-        quote_qty = str(round(position.qty, quote_asset_precision))
+        getcontext().prec = quote_asset_precision
+        getcontext().rounding = ROUND_DOWN
+        quote_qty = str(Decimal(position.qty))
         order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
         logger.debug('ORDER {}'.format(order_response))
         roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
@@ -106,7 +109,9 @@ def buy(mode, p_t):
     logger.info('BUY TF mode={} p_t={}'.format(str(mode), p_t))
     free_quote_balance = float(quote_asset_balance['free'])
     base_by_quote_balance = free_quote_balance / p_t
-    base_qty = str(round(base_by_quote_balance, base_asset_precision))
+    getcontext().prec = base_asset_precision
+    getcontext().rounding = ROUND_DOWN
+    base_qty = str(Decimal(base_by_quote_balance))
     logger.debug('BASE QTY {}'.format(base_qty))
     order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
     logger.debug('ORDER {}'.format(order_response))
