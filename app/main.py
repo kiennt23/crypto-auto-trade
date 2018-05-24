@@ -50,7 +50,7 @@ def process_message(event):
         symbol_collection = db[SYMBOL]
         symbol_collection.insert_one(price_doc)
     except DuplicateKeyError:
-        logger.error('Duplicate event {}'.format(event['_id']))
+        logger.error('Duplicate event {}'.format(price_doc['_id']))
     if mode == event_type.UPTURN:
         if p_t <= p_ext * (1.0 - LAMBDA):
             logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
