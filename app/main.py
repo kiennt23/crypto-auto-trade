@@ -29,9 +29,9 @@ class Position:
 
 
 event_type = DCEventType(['UPTURN', 'DOWNTURN'])
-mode = event_type.UPTURN
+mode = event_type.DOWNTURN
 LAMBDA = 0.004
-p_ext = 0
+p_ext = 0.0
 sing_tz = tz.gettz('UTC+8')
 client = pymongo.MongoClient("mongodb+srv://bat-price-watcher:QRTHQ3MfX5ia0oMh@cluster0-w2mrr.mongodb.net/bat-price-watcher?retryWrites=true")
 db = client['bat-price-watcher']
@@ -56,9 +56,11 @@ def process_message(event):
             logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.DOWNTURN
             p_ext = p_t
-            logger.info('BUY TF mode={} p_t={}'.format(str(mode), p_t))
-            # When BUY, create a new Position
-            position = Position(1.0, p_t)
+            logger.info('SELL CT mode={} p_t={}'.format(str(mode), p_t))
+            # When SELL, close position
+            if position is not None:
+                roi = (position.price - p_t) / position.price
+                logger.info('ROI {}'.format(str(roi)))
         else:
             p_ext = max([p_ext, p_t])
             logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
@@ -68,10 +70,9 @@ def process_message(event):
             logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.UPTURN
             p_ext = p_t
-            logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
-            # When SELL, close position
-            roi = (position.price - p_t) / position.price
-            logger.info('ROI {}'.format(str(roi)))
+            logger.info('BUY CT mode={} p_t={}'.format(str(mode), p_t))
+            # When BUY, create a new Position
+            position = Position(1.0, p_t)
         else:
             p_ext = min([p_ext, p_t])
             logger.info('p_ext={} p_t={}'.format(p_ext, p_t))
