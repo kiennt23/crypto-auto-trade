@@ -79,31 +79,10 @@ def process_kline(event):
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.DOWNTURN
             p_ext = p_t
-            logger.info('SELL CT mode={} p_t={}'.format(str(mode), p_t))
-            # When SELL, close position
-            if position is not None and 'FILLED' == position.status:
-                quote_qty = str(round(position.qty, quote_asset_precision))
-                order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
-                logger.debug('ORDER {}'.format(order_response))
-                roi = ((position.price - p_t) / position.price) - (2 * COMMISSION_RATE)
-                if ORDER_STATUS_FILLED == order_response['status']:
-                    logger.info('ROI {}'.format(str(roi)))
-                else:
-                    logger.info('Estimated ROI {}'.format(str(roi)))
-        else:
-            p_ext = max([p_ext, p_t])
-            logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
-
-    else:  # mode is DOWNTURN
-        if p_t >= p_ext * (1.0 + LAMBDA):
-            logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
-            mode = event_type.UPTURN
-            p_ext = p_t
-            logger.info('BUY CT mode={} p_t={}'.format(str(mode), p_t))
+            logger.info('BUY TF mode={} p_t={}'.format(str(mode), p_t))
             free_quote_balance = float(quote_asset_balance['free'])
             base_by_quote_balance = free_quote_balance / p_t
             base_qty = str(round(base_by_quote_balance, base_asset_precision))
-            logger.debug(base_qty)
             order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
             logger.debug('ORDER {}'.format(order_response))
             # When BUY, create a new Position
@@ -113,6 +92,27 @@ def process_kline(event):
                 position.status = 'FILLED'
             else:
                 position = Position(order_response['orderId'], 0.0, p_t)
+        else:
+            p_ext = max([p_ext, p_t])
+            logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
+
+    else:  # mode is DOWNTURN
+        if p_t >= p_ext * (1.0 + LAMBDA):
+            logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
+            mode = event_type.UPTURN
+            p_ext = p_t
+            logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
+            # When SELL, close position
+            if position is not None and 'FILLED' == position.status:
+                quote_qty = str(round(position.qty, quote_asset_precision))
+                order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
+                logger.debug('ORDER {}'.format(order_response))
+                roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
+                if ORDER_STATUS_FILLED == order_response['status']:
+                    logger.info('ROI {}'.format(str(roi)))
+                else:
+                    logger.info('Estimated ROI {}'.format(str(roi)))
+
         else:
             p_ext = min([p_ext, p_t])
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
