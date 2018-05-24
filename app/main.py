@@ -14,13 +14,6 @@ logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 
-class DCEventType(set):
-    def __getattr__(self, name):
-        if name in self:
-            return name
-        raise AttributeError
-
-
 class Position:
     def __init__(self, order_id, qty, price):
         self.order_id = order_id
@@ -29,8 +22,6 @@ class Position:
         self.status = 'OPEN'
 
 
-event_type = DCEventType(['UPTURN', 'DOWNTURN'])
-mode = event_type.DOWNTURN
 p_ext = INITIAL_P_EXT
 sing_tz = tz.gettz('UTC+8')
 mongo_client = pymongo.MongoClient("mongodb+srv://bat-price-watcher:QRTHQ3MfX5ia0oMh@cluster0-w2mrr.mongodb.net/bat-price-watcher?retryWrites=true")
@@ -112,7 +103,6 @@ def process_kline(event):
                     logger.info('ROI {}'.format(str(roi)))
                 else:
                     logger.info('Estimated ROI {}'.format(str(roi)))
-
         else:
             p_ext = min([p_ext, p_t])
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))

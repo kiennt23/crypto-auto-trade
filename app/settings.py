@@ -10,3 +10,14 @@ LAMBDA = 0.004
 INITIAL_P_EXT = 0.0
 COMMISSION_RATE = 0.0005
 
+
+class DCEventType(set):
+    def __getattr__(self, name):
+        if name in self:
+            return name
+        raise AttributeError
+
+
+event_type = DCEventType(['UPTURN', 'DOWNTURN'])
+mode = event_type.UPTURN
+
