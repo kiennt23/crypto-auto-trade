@@ -23,7 +23,6 @@ class Position:
 
 
 p_ext = INITIAL_P_EXT
-mode = INITIAL_MODE
 sing_tz = tz.gettz('UTC+8')
 mongo_client = pymongo.MongoClient("mongodb+srv://bat-price-watcher:QRTHQ3MfX5ia0oMh@cluster0-w2mrr.mongodb.net/bat-price-watcher?retryWrites=true")
 db = mongo_client['bat-price-watcher']
@@ -71,7 +70,19 @@ def process_kline(event):
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.DOWNTURN
             p_ext = p_t
-            buy(mode, p_t)
+            logger.info('BUY TF mode={} p_t={}'.format(str(mode), p_t))
+            free_quote_balance = float(quote_asset_balance['free'])
+            base_by_quote_balance = free_quote_balance / p_t
+            base_qty = str(round(base_by_quote_balance, base_asset_precision))
+            order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
+            logger.debug('ORDER {}'.format(order_response))
+            # When BUY, create a new Position
+            if ORDER_STATUS_FILLED == order_response['status']:
+                qty = float(order_response['executedQty'])
+                position = Position(order_response['orderId'], qty, p_t)
+                position.status = 'FILLED'
+            else:
+                position = Position(order_response['orderId'], 0.0, p_t)
         else:
             p_ext = max([p_ext, p_t])
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
@@ -81,42 +92,20 @@ def process_kline(event):
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.UPTURN
             p_ext = p_t
-            sell(mode, p_t, position)
+            logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
+            # When SELL, close position
+            if position is not None and 'FILLED' == position.status:
+                quote_qty = str(round(position.qty, quote_asset_precision))
+                order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
+                logger.debug('ORDER {}'.format(order_response))
+                roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
+                if ORDER_STATUS_FILLED == order_response['status']:
+                    logger.info('ROI {}'.format(str(roi)))
+                else:
+                    logger.info('Estimated ROI {}'.format(str(roi)))
         else:
             p_ext = min([p_ext, p_t])
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
-
-
-def sell(mode, p_t, position):
-    logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
-    # When SELL, close position
-    if position is not None and 'FILLED' == position.status:
-        quote_qty = str(round(position.qty, quote_asset_precision))
-        order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
-        logger.debug('ORDER {}'.format(order_response))
-        roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
-        if ORDER_STATUS_FILLED == order_response['status']:
-            logger.info('ROI {}'.format(str(roi)))
-        else:
-            logger.info('Estimated ROI {}'.format(str(roi)))
-
-
-def buy(mode, p_t):
-    global position
-    logger.info('BUY TF mode={} p_t={}'.format(str(mode), p_t))
-    free_quote_balance = float(quote_asset_balance['free'])
-    base_by_quote_balance = free_quote_balance / p_t
-    base_qty = str(round(base_by_quote_balance, base_asset_precision))
-    logger.debug('BASE QTY {}'.format(base_qty))
-    order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
-    logger.debug('ORDER {}'.format(order_response))
-    # When BUY, create a new Position
-    if ORDER_STATUS_FILLED == order_response['status']:
-        qty = float(order_response['executedQty'])
-        position = Position(order_response['orderId'], qty, p_t)
-        position.status = 'FILLED'
-    else:
-        position = Position(order_response['orderId'], 0.0, p_t)
 
 
 def process_user_data(event):

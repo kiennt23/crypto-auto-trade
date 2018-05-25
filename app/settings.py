@@ -19,5 +19,5 @@ class DCEventType(set):
 
 
 event_type = DCEventType(['UPTURN', 'DOWNTURN'])
-INITIAL_MODE = event_type.UPTURN
+mode = event_type.UPTURN
 
