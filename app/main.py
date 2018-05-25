@@ -8,6 +8,7 @@ from app.settings import *
 from dateutil import tz
 import logging
 import pymongo
+from decimal import *
 
 
 logging.basicConfig(level=LOG_LEVEL)
@@ -23,6 +24,7 @@ class Position:
 
 
 p_ext = INITIAL_P_EXT
+mode = INITIAL_MODE
 sing_tz = tz.gettz('UTC+8')
 mongo_client = pymongo.MongoClient("mongodb+srv://bat-price-watcher:QRTHQ3MfX5ia0oMh@cluster0-w2mrr.mongodb.net/bat-price-watcher?retryWrites=true")
 db = mongo_client['bat-price-watcher']
@@ -73,7 +75,9 @@ def process_kline(event):
             logger.info('BUY TF mode={} p_t={}'.format(str(mode), p_t))
             free_quote_balance = float(quote_asset_balance['free'])
             base_by_quote_balance = free_quote_balance / p_t
-            base_qty = str(round(base_by_quote_balance, base_asset_precision))
+            getcontext().prec = base_asset_precision
+            getcontext().rounding = ROUND_DOWN
+            base_qty = str(round(Decimal(base_by_quote_balance), base_asset_precision))
             order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
             logger.debug('ORDER {}'.format(order_response))
             # When BUY, create a new Position
@@ -95,7 +99,9 @@ def process_kline(event):
             logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
             # When SELL, close position
             if position is not None and 'FILLED' == position.status:
-                quote_qty = str(round(position.qty, quote_asset_precision))
+                getcontext().prec = quote_asset_precision
+                getcontext().rounding = ROUND_DOWN
+                quote_qty = str(round(Decimal(position.qty), quote_asset_precision))
                 order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
                 logger.debug('ORDER {}'.format(order_response))
                 roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
