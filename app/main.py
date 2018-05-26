@@ -1,6 +1,7 @@
 from binance.enums import *
 from binance.websockets import BinanceSocketManager
 from binance.client import Client
+from binance.depthcache import DepthCacheManager
 from pymongo.errors import DuplicateKeyError
 
 from app.settings import *
@@ -78,6 +79,7 @@ def process_kline(event):
             getcontext().prec = base_asset_precision
             getcontext().rounding = ROUND_DOWN
             base_qty = str(round(Decimal(base_by_quote_balance), base_asset_precision))
+            logger.debug('Base qty {}'.format(base_qty))
             order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
             logger.debug('ORDER {}'.format(order_response))
             # When BUY, create a new Position
@@ -102,6 +104,7 @@ def process_kline(event):
                 getcontext().prec = quote_asset_precision
                 getcontext().rounding = ROUND_DOWN
                 quote_qty = str(round(Decimal(position.qty), quote_asset_precision))
+                logger.debug('Quote qty {}'.format(quote_qty))
                 order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
                 logger.debug('ORDER {}'.format(order_response))
                 roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
@@ -132,11 +135,21 @@ def process_user_data(event):
             position.status = 'FILLED'
 
 
+def process_depth(cache):
+    if cache is not None:
+        best_bid = cache.get_bids()[:1]
+        best_ask = cache.get_asks()[:1]
+        logger.debug('Best bid {}, best ask {}'.format(best_bid, best_ask))
+    else:
+        logger.debug('Depth cache is None')
+
+
 def main():
     logger.info('Starting crypto watch for {}'.format(SYMBOL))
-    bm.start_kline_socket(SYMBOL, process_kline, interval=KLINE_INTERVAL_1MINUTE)
     bm.start_user_socket(process_user_data)
+    bm.start_kline_socket(SYMBOL, process_kline, interval=KLINE_INTERVAL_1MINUTE)
     bm.start()
+    # dcm = DepthCacheManager(client, SYMBOL, callback=process_depth, refresh_interval=60*60)
 
 
 if __name__ == '__main__':
