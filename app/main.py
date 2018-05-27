@@ -44,9 +44,8 @@ base_asset_precision = len(minQty)
 maxQty = lot_size_filter['maxQty']
 
 base_asset_balance = client.get_asset_balance(asset=base_asset)
-logger.debug(base_asset_balance)
 quote_asset_balance = client.get_asset_balance(asset=quote_asset)
-logger.debug(quote_asset_balance)
+logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
 
 bm = BinanceSocketManager(client)
 
