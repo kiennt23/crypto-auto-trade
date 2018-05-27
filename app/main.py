@@ -101,9 +101,10 @@ def process_kline(event):
             logger.debug('Quote qty to SELL {}'.format(quote_qty))
             order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
             logger.debug('ORDER {}'.format(order_response))
-            roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
-            logger.info('Estimated ROI {}'.format(str(roi)))
-            position = None
+            if position is not None:
+                roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
+                logger.info('Estimated ROI {}'.format(str(roi)))
+                position = None
 
         else:
             p_ext = min([p_ext, p_t])
