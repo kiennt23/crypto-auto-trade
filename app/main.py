@@ -17,11 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class Position:
-    def __init__(self, order_id, qty, price):
-        self.order_id = order_id
-        self.qty = qty
+    def __init__(self, price):
         self.price = price
-        self.status = 'OPEN'
 
 
 p_ext = INITIAL_P_EXT
@@ -78,17 +75,13 @@ def process_kline(event):
             base_by_quote_balance = free_quote_balance / p_t
             getcontext().prec = base_asset_precision
             getcontext().rounding = ROUND_DOWN
-            base_qty = str(round(Decimal(base_by_quote_balance), base_asset_precision))
-            logger.debug('Base qty {}'.format(base_qty))
+            # Only buy half available asset
+            half_base_by_quote_balance = base_by_quote_balance / 2
+            base_qty = str(round(Decimal(half_base_by_quote_balance), base_asset_precision))
+            logger.debug('Base qty to BUY {}'.format(base_qty))
             order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
             logger.debug('ORDER {}'.format(order_response))
-            # When BUY, create a new Position
-            if ORDER_STATUS_FILLED == order_response['status']:
-                qty = float(order_response['executedQty'])
-                position = Position(order_response['orderId'], qty, p_t)
-                position.status = 'FILLED'
-            else:
-                position = Position(order_response['orderId'], 0.0, p_t)
+            position = Position(p_t)
         else:
             p_ext = max([p_ext, p_t])
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
@@ -99,19 +92,20 @@ def process_kline(event):
             mode = event_type.UPTURN
             p_ext = p_t
             logger.info('SELL TF mode={} p_t={}'.format(str(mode), p_t))
+            free_base_balance = float(base_asset_balance['free'])
+            free_quote_by_base_balance = free_base_balance * p_t
             # When SELL, close position
-            if position is not None and 'FILLED' == position.status:
-                getcontext().prec = quote_asset_precision
-                getcontext().rounding = ROUND_DOWN
-                quote_qty = str(round(Decimal(position.qty), quote_asset_precision))
-                logger.debug('Quote qty {}'.format(quote_qty))
-                order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
-                logger.debug('ORDER {}'.format(order_response))
-                roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
-                if ORDER_STATUS_FILLED == order_response['status']:
-                    logger.info('ROI {}'.format(str(roi)))
-                else:
-                    logger.info('Estimated ROI {}'.format(str(roi)))
+            getcontext().prec = quote_asset_precision
+            getcontext().rounding = ROUND_DOWN
+            half_quote_by_base_balance = free_quote_by_base_balance / 2
+            quote_qty = str(round(Decimal(half_quote_by_base_balance), quote_asset_precision))
+            logger.debug('Quote qty to SELL {}'.format(quote_qty))
+            order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
+            logger.debug('ORDER {}'.format(order_response))
+            roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
+            logger.info('Estimated ROI {}'.format(str(roi)))
+            position = None
+
         else:
             p_ext = min([p_ext, p_t])
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
@@ -122,17 +116,12 @@ def process_user_data(event):
         base_asset_event = [asset for asset in event['B'] if asset['a'] == base_asset].pop()
         base_asset_balance['free'] = base_asset_event['f']
         base_asset_balance['locked'] = base_asset_event['l']
-        logger.debug(base_asset_balance)
         quote_asset_event = [asset for asset in event['B'] if asset['a'] == quote_asset].pop()
         quote_asset_balance['free'] = quote_asset_event['f']
         quote_asset_balance['locked'] = quote_asset_event['l']
-        logger.debug(quote_asset_balance)
+        logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
     if 'executionReport' == event['e']:
-        order_id = event['i']
-        order_status = event['X']
-        if order_id == position.order_id and 'OPEN' == position.status and ORDER_STATUS_FILLED == order_status:
-            position.qty += float(event['l'])
-            position.status = 'FILLED'
+        logger.debug('ORDER {} {} {} {} {} {}'.format(event['X'], event['S'], event['s'], event['i'], event['q'], event['p']))
 
 
 def process_depth(cache):
