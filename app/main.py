@@ -1,14 +1,9 @@
 from binance.enums import *
 from binance.websockets import BinanceSocketManager
 from binance.client import Client
-from binance.depthcache import DepthCacheManager
-from pymongo.errors import DuplicateKeyError
 
 from app.settings import *
-# from datetime import datetime
-from dateutil import tz
 import logging
-import pymongo
 from decimal import *
 
 
@@ -23,9 +18,6 @@ class Position:
 
 p_ext = INITIAL_P_EXT
 mode = INITIAL_MODE
-sing_tz = tz.gettz('UTC+8')
-mongo_client = pymongo.MongoClient("mongodb+srv://bat-price-watcher:QRTHQ3MfX5ia0oMh@cluster0-w2mrr.mongodb.net/bat-price-watcher?retryWrites=true")
-db = mongo_client['bat-price-watcher']
 
 client = Client(BINANCE_API_KEY, BINANCE_SECRET_KEY)
 exchange_info = client.get_exchange_info()
@@ -56,16 +48,13 @@ def process_kline(event):
     global p_ext
     global position
     p_t = float(event['k']['c'])
-    # event_time = datetime.fromtimestamp(event['E']/1000)
-    # event_time = event_time.replace(tzinfo=sing_tz)
-    price_doc = {'_id': event['E'], 'p': p_t}
-    try:
-        symbol_collection = db[SYMBOL]
-        symbol_collection.insert_one(price_doc)
-    except DuplicateKeyError:
-        logger.error('Duplicate event {}'.format(price_doc['_id']))
+    zi_dct0(LAMBDA, p_t)
+
+
+def zi_dct0(delta_p, p_t):
+    global mode, p_ext, position
     if mode == event_type.UPTURN:
-        if p_t <= p_ext * (1.0 - LAMBDA):
+        if p_t <= p_ext * (1.0 - delta_p):
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.DOWNTURN
             p_ext = p_t
@@ -86,7 +75,7 @@ def process_kline(event):
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
 
     else:  # mode is DOWNTURN
-        if p_t >= p_ext * (1.0 + LAMBDA):
+        if p_t >= p_ext * (1.0 + delta_p):
             logger.debug('p_ext={} p_t={}'.format(p_ext, p_t))
             mode = event_type.UPTURN
             p_ext = p_t
@@ -138,7 +127,6 @@ def main():
     bm.start_user_socket(process_user_data)
     bm.start_kline_socket(SYMBOL, process_kline, interval=KLINE_INTERVAL_1MINUTE)
     bm.start()
-    # dcm = DepthCacheManager(client, SYMBOL, callback=process_depth, refresh_interval=60*60)
 
 
 if __name__ == '__main__':
