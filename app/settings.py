@@ -1,4 +1,5 @@
 import logging
+from core.algo import TradeMethod
 
 BINANCE_API_KEY = 'FbtgTH5TAgpggxR4ltDMMjQaCLpVG2AHmzNbtwUYKiInUdbqdVnO79AXHAKnsw5X'
 BINANCE_SECRET_KEY = 'g78DnJ3VMB4TZPt3rVppf5lPKqWj9Ei0EMZjyw4IktoAmv5LsBqmVvWZsxhFZbRZ'
@@ -6,18 +7,7 @@ BINANCE_SECRET_KEY = 'g78DnJ3VMB4TZPt3rVppf5lPKqWj9Ei0EMZjyw4IktoAmv5LsBqmVvWZsx
 LOG_LEVEL = logging.DEBUG
 
 SYMBOL = 'ETHBTC'
-LAMBDA = 0.03
-INITIAL_P_EXT = 0.0
+LAMBDA = 0.017
 COMMISSION_RATE = 0.0005
-
-
-class DCEventType(set):
-    def __getattr__(self, name):
-        if name in self:
-            return name
-        raise AttributeError
-
-
-event_type = DCEventType(['UPTURN', 'DOWNTURN'])
-INITIAL_MODE = event_type.UPTURN
+TRADE_METHOD = TradeMethod.TF
 

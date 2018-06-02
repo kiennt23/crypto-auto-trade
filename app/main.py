@@ -7,14 +7,10 @@ import logging
 from decimal import *
 
 import core.algo
+from core.algo import Position
 
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
-
-
-class Position:
-    def __init__(self, price):
-        self.price = price
 
 
 client = Client(BINANCE_API_KEY, BINANCE_SECRET_KEY)
@@ -39,12 +35,18 @@ logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
 
 bm = BinanceSocketManager(client)
 
+core.algo.p_ext = 0.0
+core.algo.delta_p = LAMBDA
+core.algo.config_log(LOG_LEVEL)
+core.algo.config_trade_method(TRADE_METHOD)
+
 
 def process_kline(event):
     global position
     p_t = float(event['k']['c'])
-    action = core.algo.zi_dct0(LAMBDA, p_t)
-    if 'BUY TF' == action:
+    timestamp = event['E']
+    event_type = core.algo.zi_dct0(p_t)
+    if core.algo.is_buy_signaled(event_type, TRADE_METHOD):
         free_quote_balance = float(quote_asset_balance['free'])
         base_by_quote_balance = free_quote_balance / p_t
         getcontext().prec = base_asset_precision
@@ -56,7 +58,7 @@ def process_kline(event):
         order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
         logger.debug('ORDER {}'.format(order_response))
         position = Position(p_t)
-    elif 'SELL TF' == action:
+    elif core.algo.is_sell_signaled(event_type, TRADE_METHOD):
         free_base_balance = float(base_asset_balance['free'])
         free_quote_by_base_balance = free_base_balance * p_t
         # When SELL, close position
