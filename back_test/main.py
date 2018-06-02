@@ -31,11 +31,14 @@ def main():
     all_records = list(symbol_collection.find().sort('_id'))
     end_time = datetime.now()
     logger.info('Prices query time {}'.format(str(end_time - start_time)))
+    first_record_date = datetime.fromtimestamp(all_records[0]['_id'] / 1000, tz=utc).astimezone(sing_tz)
+    last_record_date = datetime.fromtimestamp(all_records[-1]['_id'] / 1000, tz=utc).astimezone(sing_tz)
+    logger.info('Evaluation time from {} to {}'.format(first_record_date.strftime(fmt), last_record_date.strftime(fmt)))
     lambdas = np.arange(0.001, 0.05, 0.001)
-    getcontext().prec = 3
+    getcontext().prec = 5
     for trade_method in TradeMethod:
-        core.algo.config_trade_method(trade_method)
         for LAMBDA in lambdas:
+            core.algo.config_trade_method(trade_method)
             core.algo.delta_p = LAMBDA
             result = []
             for record in all_records:
@@ -56,10 +59,11 @@ def main():
                         logger.debug('Estimated ROI {}'.format(str(roi)))
                         result.append(roi)
                         position = None
-
-            sum_roi = sum(result)
+            np_result = np.array(result)
+            np_result += 1
+            sum_roi = np.prod(np_result) - 1
             if sum_roi > 0:
-                logger.info('Total ROI {} {} {}'.format(str(round(Decimal(LAMBDA), 3)), trade_method.name, str(sum_roi)))
+                logger.info('{} LAMBDA {} ROI {}%'.format(trade_method.name, str(round(Decimal(LAMBDA), 3)), str(round(Decimal(sum_roi * 100), 2))))
 
 
 if __name__ == '__main__':

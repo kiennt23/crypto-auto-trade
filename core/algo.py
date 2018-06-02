@@ -35,7 +35,7 @@ def config_trade_method(trade_method):
         p_ext = 0.0
     else:
         mode = DCEventType.DOWNTURN
-        p_ext = sys.float_info.max
+        p_ext = 1000000000.0
 
 
 def zi_dct0(p_t):
