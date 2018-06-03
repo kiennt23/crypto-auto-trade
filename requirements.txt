@@ -20,6 +20,7 @@ pycparser==2.18
 pymongo==3.6.1
 pyOpenSSL==18.0.0
 python-binance==0.6.9
+python-dateutil==2.7.3
 pytz==2018.4
 regex==2018.2.21
 requests==2.18.4
@@ -29,4 +30,5 @@ Twisted==18.4.0
 txaio==2.10.0
 tzlocal==1.5.1
 urllib3==1.22
+zi-dct0==0.0.1
 zope.interface==4.5.0
