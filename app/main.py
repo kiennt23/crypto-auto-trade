@@ -1,13 +1,13 @@
-from binance.enums import *
-from binance.websockets import BinanceSocketManager
-from binance.client import Client
-
-from app.settings import *
 import logging
 from math import floor
 
 import core.algo
+from binance.client import Client
+from binance.enums import *
+from binance.websockets import BinanceSocketManager
 from core.algo import Position
+
+from app.settings import *
 
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)

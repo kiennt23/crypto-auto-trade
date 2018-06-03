@@ -1,4 +1,5 @@
 import logging
+
 from core.algo import TradeMethod
 
 BINANCE_API_KEY = 'FbtgTH5TAgpggxR4ltDMMjQaCLpVG2AHmzNbtwUYKiInUdbqdVnO79AXHAKnsw5X'
