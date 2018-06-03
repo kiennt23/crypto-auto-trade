@@ -1,2 +1,9 @@
-git remote add heroku https://heroku:3c146626-1ae0-41bc-91e3-84a6bb6ca8bc@git.heroku.com/binance-automated-trader.git
-git push -f heroku master
+production:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=binance-automated-trader --api-key=3c146626-1ae0-41bc-91e3-84a6bb6ca8bc
+  only:
+  - tags
