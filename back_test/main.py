@@ -22,10 +22,26 @@ db = mongo_client['bat-price-watcher']
 core.algo.config_log(LOG_LEVEL)
 
 
-def main():
+def dct1():
     global position
     logger.info('Starting crypto back test for {}'.format(SYMBOL))
 
+    start = 0.001
+    stop = 0.05
+    step = 0.001
+    lambdas = np.arange(start, stop, step)
+    max_roi_method, max_roi_lambda, max_roi = calculate_max_lambda(lambdas)
+    start = max_roi_lambda - 2*step
+    stop = max_roi_lambda + 2*step
+    step = step / 10
+    lambdas = np.arange(start, stop, step)
+    max_roi_method, max_roi_lambda, max_roi = calculate_max_lambda(lambdas)
+    logger.info('FINAL MAX {} LAMBDA {} ROI {}%'.format(max_roi_method.name, str(round(Decimal(max_roi_lambda), 4)),
+                                                  str(round(Decimal(max_roi * 100), 3))))
+
+
+def calculate_max_lambda(lambdas):
+    global position
     symbol_collection = db[SYMBOL]
     start_time = datetime.now()
     all_records = list(symbol_collection.find().sort('_id'))
@@ -34,8 +50,10 @@ def main():
     first_record_date = datetime.fromtimestamp(all_records[0]['_id'] / 1000, tz=utc).astimezone(sing_tz)
     last_record_date = datetime.fromtimestamp(all_records[-1]['_id'] / 1000, tz=utc).astimezone(sing_tz)
     logger.info('Evaluation time from {} to {}'.format(first_record_date.strftime(fmt), last_record_date.strftime(fmt)))
-    lambdas = np.arange(0.001, 0.05, 0.001)
     getcontext().prec = 5
+    max_roi = None
+    max_roi_method = None
+    max_roi_lambda = None
     for trade_method in TradeMethod:
         for LAMBDA in lambdas:
             core.algo.config_trade_method(trade_method)
@@ -63,8 +81,16 @@ def main():
             np_result += 1
             sum_roi = np.prod(np_result) - 1
             if sum_roi > 0:
-                logger.info('{} LAMBDA {} ROI {}%'.format(trade_method.name, str(round(Decimal(LAMBDA), 3)), str(round(Decimal(sum_roi * 100), 2))))
+                logger.info('{} LAMBDA {} ROI {}%'.format(trade_method.name, str(round(Decimal(LAMBDA), 3)),
+                                                          str(round(Decimal(sum_roi * 100), 2))))
+            if max_roi is None or max_roi < sum_roi:
+                max_roi = sum_roi
+                max_roi_method = trade_method
+                max_roi_lambda = LAMBDA
+    logger.info('MAX {} LAMBDA {} ROI {}%'.format(max_roi_method.name, str(round(Decimal(max_roi_lambda), 4)),
+                                                  str(round(Decimal(max_roi * 100), 3))))
+    return max_roi_method, max_roi_lambda, max_roi
 
 
 if __name__ == '__main__':
-    main()
+    dct1()
