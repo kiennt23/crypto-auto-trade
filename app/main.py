@@ -4,7 +4,7 @@ from binance.client import Client
 
 from app.settings import *
 import logging
-from decimal import *
+from math import floor
 
 import core.algo
 from core.algo import Position
@@ -49,11 +49,9 @@ def process_kline(event):
     if core.algo.is_buy_signaled(event_type, TRADE_METHOD):
         free_quote_balance = float(quote_asset_balance['free'])
         base_by_quote_balance = free_quote_balance / p_t
-        getcontext().prec = base_asset_precision
-        getcontext().rounding = ROUND_DOWN
         # Only buy half available asset
         half_base_by_quote_balance = base_by_quote_balance / 2
-        base_qty = str(round(Decimal(half_base_by_quote_balance), base_asset_precision))
+        base_qty = round_down(half_base_by_quote_balance, d=base_asset_precision)
         logger.debug('Base qty to BUY {}'.format(base_qty))
         order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
         logger.debug('ORDER {}'.format(order_response))
@@ -62,10 +60,8 @@ def process_kline(event):
         free_base_balance = float(base_asset_balance['free'])
         free_quote_by_base_balance = free_base_balance * p_t
         # When SELL, close position
-        getcontext().prec = quote_asset_precision
-        getcontext().rounding = ROUND_DOWN
         half_quote_by_base_balance = free_quote_by_base_balance / 2
-        quote_qty = str(round(Decimal(half_quote_by_base_balance), quote_asset_precision))
+        quote_qty = round_down(half_quote_by_base_balance, d=quote_asset_precision)
         logger.debug('Quote qty to SELL {}'.format(quote_qty))
         order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
         logger.debug('ORDER {}'.format(order_response))
@@ -73,6 +69,11 @@ def process_kline(event):
             roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
             logger.info('Estimated ROI {}'.format(str(roi)))
             position = None
+
+
+def round_down(n, d=8):
+    d = int('1' + ('0' * d))
+    return floor(n * d) / d
 
 
 def process_user_data(event):
