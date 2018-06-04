@@ -5,6 +5,7 @@ import core.algo
 from binance.client import Client
 from binance.enums import *
 from binance.websockets import BinanceSocketManager
+from binance.depthcache import DepthCacheManager
 from core.algo import Position
 
 from app.settings import *
@@ -42,33 +43,47 @@ core.algo.config_trade_method(TRADE_METHOD)
 
 
 def process_kline(event):
-    global position
+    global position, best_bid, best_ask
     p_t = float(event['k']['c'])
     timestamp = event['E']
     event_type = core.algo.zi_dct0(p_t)
     if core.algo.is_buy_signaled(event_type, TRADE_METHOD):
         free_quote_balance = float(quote_asset_balance['free'])
-        base_by_quote_balance = free_quote_balance / p_t
+        base_by_quote_balance = free_quote_balance / best_ask
         # Only buy half available asset
-        half_base_by_quote_balance = base_by_quote_balance / 2
+        half_base_by_quote_balance = base_by_quote_balance / PORTFOLIO_RATIO
         base_qty = round_down(half_base_by_quote_balance, d=base_asset_precision)
         logger.debug('Base qty to BUY {}'.format(base_qty))
-        order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=p_t)
+        order_response = client.create_order(
+            symbol=SYMBOL,
+            side=SIDE_BUY,
+            type=ORDER_TYPE_LIMIT,
+            timeInForce=TIME_IN_FORCE_IOC,
+            quantity=base_qty,
+            price=best_ask)
+        # order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=best_ask)
         logger.debug('ORDER {}'.format(order_response))
-        position = Position(p_t)
+        position = Position(best_ask)
     elif core.algo.is_sell_signaled(event_type, TRADE_METHOD):
         free_base_balance = float(base_asset_balance['free'])
         # free_quote_by_base_balance = free_base_balance * p_t
         # When SELL, close position
         # half_quote_by_base_balance = free_quote_by_base_balance / 2
-        half_base_balance = free_base_balance / 2
+        half_base_balance = free_base_balance / PORTFOLIO_RATIO
         # quote_qty = round_down(half_quote_by_base_balance, d=quote_asset_precision)
         quote_qty = round_down(half_base_balance, d=base_asset_precision)  # Don't know why
         logger.debug('Quote qty to SELL {}'.format(quote_qty))
-        order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
+        order_response = client.create_order(
+            symbol=SYMBOL,
+            side=SIDE_SELL,
+            type=ORDER_TYPE_LIMIT,
+            timeInForce=TIME_IN_FORCE_IOC,
+            quantity=quote_qty,
+            price=best_bid)
+        # order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=best_bid)
         logger.debug('ORDER {}'.format(order_response))
         if position is not None:
-            roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
+            roi = ((best_bid - position.price) / position.price) - (2 * COMMISSION_RATE)
             logger.info('Estimated ROI {}'.format(str(roi)))
             position = None
 
@@ -92,6 +107,7 @@ def process_user_data(event):
 
 
 def process_depth(cache):
+    global best_bid, best_ask
     if cache is not None:
         best_bid = cache.get_bids()[:1]
         best_ask = cache.get_asks()[:1]
@@ -104,6 +120,7 @@ def main():
     logger.info('Starting crypto watch for {}'.format(SYMBOL))
     bm.start_user_socket(process_user_data)
     bm.start_kline_socket(SYMBOL, process_kline, interval=KLINE_INTERVAL_1MINUTE)
+    dcm = DepthCacheManager(client, SYMBOL, callback=process_depth, refresh_interval=60*60)
     bm.start()
 
 
