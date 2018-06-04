@@ -58,10 +58,12 @@ def process_kline(event):
         position = Position(p_t)
     elif core.algo.is_sell_signaled(event_type, TRADE_METHOD):
         free_base_balance = float(base_asset_balance['free'])
-        free_quote_by_base_balance = free_base_balance * p_t
+        # free_quote_by_base_balance = free_base_balance * p_t
         # When SELL, close position
-        half_quote_by_base_balance = free_quote_by_base_balance / 2
-        quote_qty = round_down(half_quote_by_base_balance, d=quote_asset_precision)
+        # half_quote_by_base_balance = free_quote_by_base_balance / 2
+        half_base_balance = free_base_balance / 2
+        # quote_qty = round_down(half_quote_by_base_balance, d=quote_asset_precision)
+        quote_qty = round_down(half_base_balance, d=base_asset_precision)  # Don't know why
         logger.debug('Quote qty to SELL {}'.format(quote_qty))
         order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=p_t)
         logger.debug('ORDER {}'.format(order_response))
