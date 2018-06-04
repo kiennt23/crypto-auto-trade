@@ -49,7 +49,7 @@ def process_kline(event):
     event_type = core.algo.zi_dct0(p_t)
     if core.algo.is_buy_signaled(event_type, TRADE_METHOD):
         free_quote_balance = float(quote_asset_balance['free'])
-        base_by_quote_balance = free_quote_balance / best_ask
+        base_by_quote_balance = free_quote_balance / best_ask[0]
         # Only buy half available asset
         half_base_by_quote_balance = base_by_quote_balance / PORTFOLIO_RATIO
         base_qty = round_down(half_base_by_quote_balance, d=base_asset_precision)
@@ -60,10 +60,10 @@ def process_kline(event):
             type=ORDER_TYPE_LIMIT,
             timeInForce=TIME_IN_FORCE_IOC,
             quantity=base_qty,
-            price=best_ask)
+            price=best_ask[0])
         # order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=best_ask)
         logger.debug('ORDER {}'.format(order_response))
-        position = Position(best_ask)
+        position = Position(best_ask[0])
     elif core.algo.is_sell_signaled(event_type, TRADE_METHOD):
         free_base_balance = float(base_asset_balance['free'])
         # free_quote_by_base_balance = free_base_balance * p_t
@@ -79,11 +79,11 @@ def process_kline(event):
             type=ORDER_TYPE_LIMIT,
             timeInForce=TIME_IN_FORCE_IOC,
             quantity=quote_qty,
-            price=best_bid)
+            price=best_bid[0])
         # order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=best_bid)
         logger.debug('ORDER {}'.format(order_response))
         if position is not None:
-            roi = ((best_bid - position.price) / position.price) - (2 * COMMISSION_RATE)
+            roi = ((best_bid[0] - position.price) / position.price) - (2 * COMMISSION_RATE)
             logger.info('Estimated ROI {}'.format(str(roi)))
             position = None
 
@@ -109,8 +109,8 @@ def process_user_data(event):
 def process_depth(cache):
     global best_bid, best_ask
     if cache is not None:
-        best_bid = cache.get_bids()[:1]
-        best_ask = cache.get_asks()[:1]
+        best_bid = cache.get_bids()[0]
+        best_ask = cache.get_asks()[0]
         logger.debug('Best bid {}, best ask {}'.format(best_bid, best_ask))
     else:
         logger.debug('Depth cache is None')
