@@ -58,7 +58,7 @@ def process_kline(event):
             symbol=SYMBOL,
             side=SIDE_BUY,
             type=ORDER_TYPE_LIMIT,
-            timeInForce=TIME_IN_FORCE_IOC,
+            timeInForce=TIME_IN_FORCE_GTC,
             quantity=base_qty,
             price=best_ask[0])
         # order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=best_ask)
@@ -77,7 +77,7 @@ def process_kline(event):
             symbol=SYMBOL,
             side=SIDE_SELL,
             type=ORDER_TYPE_LIMIT,
-            timeInForce=TIME_IN_FORCE_IOC,
+            timeInForce=TIME_IN_FORCE_GTC,
             quantity=quote_qty,
             price=best_bid[0])
         # order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=best_bid)
@@ -111,7 +111,6 @@ def process_depth(cache):
     if cache is not None:
         best_bid = cache.get_bids()[0]
         best_ask = cache.get_asks()[0]
-        logger.debug('Best bid {}, best ask {}'.format(best_bid, best_ask))
     else:
         logger.debug('Depth cache is None')
 
@@ -120,7 +119,7 @@ def main():
     logger.info('Starting crypto watch for {}'.format(SYMBOL))
     bm.start_user_socket(process_user_data)
     bm.start_kline_socket(SYMBOL, process_kline, interval=KLINE_INTERVAL_1MINUTE)
-    dcm = DepthCacheManager(client, SYMBOL, callback=process_depth, refresh_interval=60*60)
+    dcm = DepthCacheManager(client, SYMBOL, callback=process_depth, refresh_interval=60)
     bm.start()
 
 
