@@ -51,7 +51,7 @@ def process_kline(event):
         free_quote_balance = float(quote_asset_balance['free'])
         base_by_quote_balance = free_quote_balance / best_ask[0]
         # Only buy half available asset
-        half_base_by_quote_balance = base_by_quote_balance / PORTFOLIO_RATIO
+        half_base_by_quote_balance = base_by_quote_balance * PORTFOLIO_RATIO
         base_qty = round_down(half_base_by_quote_balance, d=base_asset_precision)
         logger.debug('Base qty to BUY {}'.format(base_qty))
         order_response = client.create_order(
@@ -69,7 +69,7 @@ def process_kline(event):
         # free_quote_by_base_balance = free_base_balance * p_t
         # When SELL, close position
         # half_quote_by_base_balance = free_quote_by_base_balance / 2
-        half_base_balance = free_base_balance / PORTFOLIO_RATIO
+        half_base_balance = free_base_balance * PORTFOLIO_RATIO
         # quote_qty = round_down(half_quote_by_base_balance, d=quote_asset_precision)
         quote_qty = round_down(half_base_balance, d=base_asset_precision)  # Don't know why
         logger.debug('Quote qty to SELL {}'.format(quote_qty))
