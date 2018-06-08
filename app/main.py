@@ -45,14 +45,13 @@ core.algo.config_trade_method(TRADE_METHOD)
 def process_kline(event):
     global position, best_bid, best_ask
     p_t = float(event['k']['c'])
-    timestamp = event['E']
     event_type = core.algo.zi_dct0(p_t)
     if core.algo.is_buy_signaled(event_type, TRADE_METHOD):
         free_quote_balance = float(quote_asset_balance['free'])
-        base_by_quote_balance = free_quote_balance / best_ask[0]
-        # Only buy half available asset
-        half_base_by_quote_balance = base_by_quote_balance * PORTFOLIO_RATIO
-        base_qty = round_down(half_base_by_quote_balance, d=base_asset_precision)
+        price_to_buy = p_t if p_t <= best_ask[0] else best_ask[0]
+        base_by_quote_balance = free_quote_balance / price_to_buy
+        qty_to_buy = base_by_quote_balance * BUY_RATIO
+        base_qty = round_down(qty_to_buy, d=base_asset_precision)
         logger.debug('Base qty to BUY {}'.format(base_qty))
         order_response = client.create_order(
             symbol=SYMBOL,
@@ -60,30 +59,43 @@ def process_kline(event):
             type=ORDER_TYPE_LIMIT,
             timeInForce=TIME_IN_FORCE_GTC,
             quantity=base_qty,
-            price=best_ask[0])
-        # order_response = client.order_limit_buy(symbol=SYMBOL, quantity=base_qty, price=best_ask)
+            price=price_to_buy)
         logger.debug('ORDER {}'.format(order_response))
-        position = Position(best_ask[0])
+        position = Position(price_to_buy)
     elif core.algo.is_sell_signaled(event_type, TRADE_METHOD):
         free_base_balance = float(base_asset_balance['free'])
-        # free_quote_by_base_balance = free_base_balance * p_t
-        # When SELL, close position
-        # half_quote_by_base_balance = free_quote_by_base_balance / 2
-        half_base_balance = free_base_balance * PORTFOLIO_RATIO
-        # quote_qty = round_down(half_quote_by_base_balance, d=quote_asset_precision)
-        quote_qty = round_down(half_base_balance, d=base_asset_precision)  # Don't know why
+        qty_to_sell = free_base_balance * SELL_RATIO
+        quote_qty = round_down(qty_to_sell, d=base_asset_precision)
         logger.debug('Quote qty to SELL {}'.format(quote_qty))
+        price_to_sell = p_t if p_t >= best_bid[0] else best_bid[0]
         order_response = client.create_order(
             symbol=SYMBOL,
             side=SIDE_SELL,
             type=ORDER_TYPE_LIMIT,
             timeInForce=TIME_IN_FORCE_GTC,
             quantity=quote_qty,
-            price=best_bid[0])
-        # order_response = client.order_limit_sell(symbol=SYMBOL, quantity=quote_qty, price=best_bid)
+            price=price_to_sell)
         logger.debug('ORDER {}'.format(order_response))
         if position is not None:
-            roi = ((best_bid[0] - position.price) / position.price) - (2 * COMMISSION_RATE)
+            roi = ((price_to_sell - position.price) / position.price) - (2 * COMMISSION_RATE)
+            logger.info('Estimated ROI {}'.format(str(roi)))
+            position = None
+    elif position is not None:
+        roi = ((best_bid[0] - position.price) / position.price) - (2 * COMMISSION_RATE)
+        if roi >= THRESHOLD_WITHOUT_SIGNAL:
+            logger.info('SELL WITHOUT SIGNAL')
+            free_base_balance = float(base_asset_balance['free'])
+            qty_to_sell = free_base_balance * SELL_RATIO
+            quote_qty = round_down(qty_to_sell, d=base_asset_precision)
+            logger.debug('Quote qty to SELL {}'.format(quote_qty))
+            order_response = client.create_order(
+                symbol=SYMBOL,
+                side=SIDE_SELL,
+                type=ORDER_TYPE_LIMIT,
+                timeInForce=TIME_IN_FORCE_GTC,
+                quantity=quote_qty,
+                price=best_bid[0])
+            logger.debug('ORDER {}'.format(order_response))
             logger.info('Estimated ROI {}'.format(str(roi)))
             position = None
 
