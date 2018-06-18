@@ -1,6 +1,6 @@
 import logging
 
-from core.algo import TradeMethod
+from core.algo import TradeStrategy
 
 BINANCE_API_KEY = 'FbtgTH5TAgpggxR4ltDMMjQaCLpVG2AHmzNbtwUYKiInUdbqdVnO79AXHAKnsw5X'
 BINANCE_SECRET_KEY = 'g78DnJ3VMB4TZPt3rVppf5lPKqWj9Ei0EMZjyw4IktoAmv5LsBqmVvWZsxhFZbRZ'
@@ -8,9 +8,9 @@ BINANCE_SECRET_KEY = 'g78DnJ3VMB4TZPt3rVppf5lPKqWj9Ei0EMZjyw4IktoAmv5LsBqmVvWZsx
 LOG_LEVEL = logging.DEBUG
 
 SYMBOL = 'ETHUSDT'
-LAMBDA = 0.0142
+LAMBDA = 0.0673
 COMMISSION_RATE = 0.0005
-TRADE_METHOD = TradeMethod.TF
+TRADE_METHOD = TradeStrategy.CT
 BUY_RATIO = 0.5
 SELL_RATIO = 1
 THRESHOLD_WITHOUT_SIGNAL = 0.02

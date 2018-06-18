@@ -6,7 +6,7 @@ from binance.client import Client
 from binance.enums import *
 from binance.websockets import BinanceSocketManager
 from binance.depthcache import DepthCacheManager
-from core.algo import Position
+from core.algo import DCEventType, Config, ZI_DCT0
 
 from app.settings import *
 
@@ -36,17 +36,23 @@ logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
 
 bm = BinanceSocketManager(client)
 
-core.algo.p_ext = 0.0
-core.algo.delta_p = LAMBDA
-core.algo.config_log(LOG_LEVEL)
-core.algo.config_trade_method(TRADE_METHOD)
+config = Config(TRADE_METHOD, LAMBDA, DCEventType.DOWNTURN, 491.37)
+dct0_runner = ZI_DCT0(logger, config)
+
+
+class Position:
+    def __init__(self, price):
+        self.price = price
+
+
+position = None
 
 
 def process_kline(event):
     global position, best_bid, best_ask
-    p_t = float(event['k']['c'])
-    event_type = core.algo.zi_dct0(p_t)
-    if core.algo.is_buy_signaled(event_type, TRADE_METHOD):
+    p_t: float = float(event['k']['c'])
+    observe = dct0_runner.observe(p_t)
+    if dct0_runner.is_buy_signaled():
         free_quote_balance = float(quote_asset_balance['free'])
         price_to_buy = p_t if p_t <= best_ask[0] else best_ask[0]
         base_by_quote_balance = free_quote_balance / price_to_buy
@@ -62,7 +68,7 @@ def process_kline(event):
             price=price_to_buy)
         logger.debug('ORDER {}'.format(order_response))
         position = Position(price_to_buy)
-    elif core.algo.is_sell_signaled(event_type, TRADE_METHOD):
+    elif dct0_runner.is_sell_signaled():
         free_base_balance = float(base_asset_balance['free'])
         qty_to_sell = free_base_balance * SELL_RATIO
         quote_qty = round_down(qty_to_sell, d=base_asset_precision)
@@ -78,24 +84,6 @@ def process_kline(event):
         logger.debug('ORDER {}'.format(order_response))
         if position is not None:
             roi = ((price_to_sell - position.price) / position.price) - (2 * COMMISSION_RATE)
-            logger.info('Estimated ROI {}'.format(str(roi)))
-            position = None
-    elif position is not None:
-        roi = ((best_bid[0] - position.price) / position.price) - (2 * COMMISSION_RATE)
-        if roi >= THRESHOLD_WITHOUT_SIGNAL:
-            logger.info('SELL WITHOUT SIGNAL')
-            free_base_balance = float(base_asset_balance['free'])
-            qty_to_sell = free_base_balance * SELL_RATIO
-            quote_qty = round_down(qty_to_sell, d=base_asset_precision)
-            logger.debug('Quote qty to SELL {}'.format(quote_qty))
-            order_response = client.create_order(
-                symbol=SYMBOL,
-                side=SIDE_SELL,
-                type=ORDER_TYPE_LIMIT,
-                timeInForce=TIME_IN_FORCE_GTC,
-                quantity=quote_qty,
-                price=best_bid[0])
-            logger.debug('ORDER {}'.format(order_response))
             logger.info('Estimated ROI {}'.format(str(roi)))
             position = None
 
