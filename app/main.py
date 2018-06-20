@@ -36,7 +36,7 @@ logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
 
 bm = BinanceSocketManager(client)
 
-config = Config(TRADE_METHOD, LAMBDA, DCEventType.UPTURN, 0.077477)
+config = Config(TRADE_METHOD, LAMBDA, DCEventType.UPTURN, 0.079877)
 dct0_runner = ZI_DCT0(logger, config)
 
 
