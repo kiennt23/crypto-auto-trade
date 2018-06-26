@@ -1,11 +1,9 @@
-import logging
 from math import floor
 
-import core.algo
 from binance.client import Client
+from binance.depthcache import DepthCacheManager
 from binance.enums import *
 from binance.websockets import BinanceSocketManager
-from binance.depthcache import DepthCacheManager
 from core.algo import DCEventType, Config, ZI_DCT0
 
 from app.settings import *
@@ -13,14 +11,14 @@ from app.settings import *
 logging.basicConfig(level=LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
-
 client = Client(BINANCE_API_KEY, BINANCE_SECRET_KEY)
 exchange_info = client.get_exchange_info()
 symbol_info = [symbol for symbol in exchange_info['symbols'] if symbol['symbol'] == SYMBOL].pop()
 base_asset = symbol_info['baseAsset']
 quote_asset = symbol_info['quoteAsset']
 quote_asset_precision = symbol_info['quotePrecision']
-lot_size_filter = [symbol_filter for symbol_filter in symbol_info['filters'] if 'LOT_SIZE' == symbol_filter['filterType']].pop()
+lot_size_filter = [symbol_filter for symbol_filter in symbol_info['filters'] if
+                   'LOT_SIZE' == symbol_filter['filterType']].pop()
 minQty = lot_size_filter['minQty'].rstrip('0')
 dot_index = minQty.find('.')
 if -1 != dot_index:
@@ -36,7 +34,7 @@ logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
 
 bm = BinanceSocketManager(client)
 
-config = Config(TRADE_METHOD, LAMBDA, DCEventType.UPTURN, 0.077477)
+config = Config(TRADE_METHOD, LAMBDA, DCEventType.DOWNTURN, 0.0717)
 dct0_runner = ZI_DCT0(logger, config)
 
 
@@ -103,7 +101,8 @@ def process_user_data(event):
         quote_asset_balance['locked'] = quote_asset_event['l']
         logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
     if 'executionReport' == event['e']:
-        logger.debug('ORDER {} {} {} {} {} {}'.format(event['X'], event['S'], event['s'], event['i'], event['q'], event['p']))
+        logger.debug(
+            'ORDER {} {} {} {} {} {}'.format(event['X'], event['S'], event['s'], event['i'], event['q'], event['p']))
 
 
 def process_depth(cache):
