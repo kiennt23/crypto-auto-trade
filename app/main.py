@@ -38,10 +38,9 @@ bm = BinanceSocketManager(client)
 
 mongo_client = pymongo.MongoClient(MONGO_URL)
 state_db = mongo_client['bat-price-state']
-state_collection = state_db[SYMBOL]
 strategy = TRADE_METHOD
-symbol_state_collection = state_db[SYMBOL]
-symbol_states = symbol_state_collection.find({'S': strategy.name, 'L': str(round(Decimal(LAMBDA), 4))}).sort(
+state_collection = state_db[SYMBOL]
+symbol_states = state_collection.find({'S': strategy.name, 'L': str(round(Decimal(LAMBDA), 4))}).sort(
     [('_id', pymongo.DESCENDING)]).limit(1)
 
 if symbol_states.count() > 0:
