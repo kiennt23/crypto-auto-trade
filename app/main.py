@@ -1,5 +1,7 @@
+from decimal import *
 from math import floor
 
+import pymongo
 from binance.client import Client
 from binance.depthcache import DepthCacheManager
 from binance.enums import *
@@ -34,7 +36,23 @@ logger.debug('{} {}'.format(base_asset_balance, quote_asset_balance))
 
 bm = BinanceSocketManager(client)
 
-config = Config(TRADE_METHOD, LAMBDA, DCEventType.DOWNTURN, 0.07)
+mongo_client = pymongo.MongoClient(MONGO_URL)
+state_db = mongo_client['bat-price-state']
+state_collection = state_db[SYMBOL]
+strategy = TRADE_METHOD
+symbol_state_collection = state_db[SYMBOL]
+symbol_states = symbol_state_collection.find({'S': strategy.name, 'L': str(round(Decimal(LAMBDA), 4))}).sort(
+    [('_id', pymongo.DESCENDING)]).limit(1)
+
+if symbol_states.count() > 0:
+    latest_state = symbol_states[0]
+    logger.debug('Latest state {}'.format(latest_state))
+    dc_event = DCEventType[latest_state['E']]
+    trade_strategy = TradeStrategy[latest_state['S']]
+    config = Config(trade_strategy, float(latest_state['L']), dc_event, latest_state['p_ext'])
+else:
+    config = Config(TRADE_METHOD, LAMBDA, DCEventType.DOWNTURN, 0.07)
+
 dct0_runner = ZI_DCT0(logger, config)
 
 
@@ -44,6 +62,8 @@ class Position:
 
 
 position = None
+best_bid = None
+best_ask = None
 
 
 def process_kline(event):
