@@ -1,12 +1,15 @@
+from datetime import datetime
 from decimal import *
 from math import floor
 
 import pymongo
+import pytz
 from binance.client import Client
 from binance.depthcache import DepthCacheManager
 from binance.enums import *
 from binance.websockets import BinanceSocketManager
 from core.algo import DCEventType, Config, ZI_DCT0
+from pytz import timezone
 
 from app.settings import *
 
@@ -43,14 +46,31 @@ state_collection = state_db[SYMBOL]
 symbol_states = state_collection.find({'S': strategy.name, 'L': str(round(Decimal(LAMBDA), 4))}).sort(
     [('_id', pymongo.DESCENDING)]).limit(1)
 
+price_db = mongo_client['bat-price-watcher']
+
+
+def get_all_records(symbol=SYMBOL, start_time=None):
+    symbol_collection = price_db[symbol]
+    # start_time = datetime.now()
+    if start_time is not None:
+        all_records = symbol_collection.find({'_id': {'$gt': start_time}}).sort('_id')
+    else:
+        all_records = symbol_collection.find().sort('_id')
+    return all_records
+
+
 if symbol_states.count() > 0:
     latest_state = symbol_states[0]
     logger.debug('Latest state {}'.format(latest_state))
     dc_event = DCEventType[latest_state['E']]
     trade_strategy = TradeStrategy[latest_state['S']]
     config = Config(trade_strategy, float(latest_state['L']), dc_event, latest_state['p_ext'])
+    start_time = latest_state['t_e']
+    all_records = get_all_records(SYMBOL, start_time)
 else:
-    config = Config(TRADE_METHOD, LAMBDA, DCEventType.DOWNTURN, 0.07)
+    trade_strategy = TRADE_METHOD
+    config = Config(trade_strategy, LAMBDA, DCEventType.DOWNTURN, 0.07)
+    all_records = get_all_records(SYMBOL)
 
 dct0_runner = ZI_DCT0(logger, config)
 
@@ -63,6 +83,32 @@ class Position:
 position = None
 best_bid = None
 best_ask = None
+
+utc = pytz.utc
+sing_tz = timezone('Asia/Singapore')
+fmt = '%Y-%m-%d %H:%M:%S'
+for record in all_records:
+    p_t = record['p']
+    timestamp = record['_id']
+    date = datetime.fromtimestamp(timestamp / 1000, tz=utc)
+    end_dc_event = date.astimezone(sing_tz)
+    event_type = dct0_runner.observe(p_t, timestamp)
+    start_dc_event = datetime.fromtimestamp(dct0_runner.t_start_dc / 1000, tz=utc).astimezone(sing_tz)
+    state = {'L': str(round(Decimal(LAMBDA), 4)), 'S': trade_strategy.name, 'E': event_type.name,
+             't_s': dct0_runner.t_start_dc, 't_e': timestamp, 'p_ext': dct0_runner.p_start_dc, 'p_t': p_t}
+    if dct0_runner.is_buy_signaled():
+        logger.debug('DC Event {} start {} end {} BUY {} p_ext={} p_t={}'
+                     .format(event_type.name, start_dc_event.strftime(fmt), end_dc_event.strftime(fmt),
+                             trade_strategy.name, dct0_runner.p_start_dc, p_t))
+        state_collection.update_one({'_id': timestamp}, {'$set': state}, upsert=True)
+        position = Position(p_t)
+    elif dct0_runner.is_sell_signaled():
+        if position is not None:
+            roi = ((p_t - position.price) / position.price) - (2 * COMMISSION_RATE)
+            logger.debug('DC Event {} start {} end {} SELL {} p_ext={} p_t={}'
+                         .format(event_type.name, start_dc_event.strftime(fmt), end_dc_event.strftime(fmt),
+                                 trade_strategy.name, dct0_runner.p_start_dc, p_t))
+            state_collection.update_one({'_id': timestamp}, {'$set': state}, upsert=True)
 
 
 def process_kline(event):

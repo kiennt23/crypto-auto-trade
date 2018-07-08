@@ -30,5 +30,5 @@ Twisted==18.4.0
 txaio==2.10.0
 tzlocal==1.5.1
 urllib3==1.22
-zi-dct0==0.0.6
+zi-dct0==0.0.8
 zope.interface==4.5.0
