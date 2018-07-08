@@ -46,6 +46,16 @@ state_collection = state_db[SYMBOL]
 symbol_states = state_collection.find({'S': strategy.name, 'L': str(round(Decimal(LAMBDA), 4))}).sort(
     [('_id', pymongo.DESCENDING)]).limit(1)
 
+
+class Position:
+    def __init__(self, price):
+        self.price = price
+
+
+position = None
+best_bid = None
+best_ask = None
+
 price_db = mongo_client['bat-price-watcher']
 
 
@@ -74,16 +84,6 @@ else:
 
 dct0_runner = ZI_DCT0(logger, config)
 
-
-class Position:
-    def __init__(self, price):
-        self.price = price
-
-
-position = None
-best_bid = None
-best_ask = None
-
 utc = pytz.utc
 sing_tz = timezone('Asia/Singapore')
 fmt = '%Y-%m-%d %H:%M:%S'
@@ -109,6 +109,7 @@ for record in all_records:
                          .format(event_type.name, start_dc_event.strftime(fmt), end_dc_event.strftime(fmt),
                                  trade_strategy.name, dct0_runner.p_start_dc, p_t))
             state_collection.update_one({'_id': timestamp}, {'$set': state}, upsert=True)
+            position = None  # After sell, clear the position
 
 
 def process_kline(event):
