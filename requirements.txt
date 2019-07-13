@@ -26,7 +26,7 @@ regex==2018.2.21
 requests==2.18.4
 service-identity==17.0.0
 six==1.11.0
-Twisted==18.4.0
+Twisted==19.2.1
 txaio==2.10.0
 tzlocal==1.5.1
 urllib3==1.22
