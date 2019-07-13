@@ -4,4 +4,4 @@ production:
   - apt-get update -qy
   - apt-get install -y ruby-dev
   - gem install dpl
-  - dpl --provider=heroku --app=clark-hft --api-key=76d78d1f-7c27-4e69-b25f-a7e84c17e7c9
+  - dpl --provider=heroku --app=<heroku_app_name> --api-key=<heroku_key>
