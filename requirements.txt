@@ -7,7 +7,7 @@ cffi==1.11.5
 chardet==3.0.4
 constantly==15.1.0
 coverage==4.5.1
-cryptography==3.3.2
+cryptography==39.0.1
 dateparser==0.7.0
 dnspython==1.15.0
 hyperlink==18.0.0
